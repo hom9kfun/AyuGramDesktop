@@ -14,12 +14,22 @@ jobs:
     if: "${{ github.event.pull_request.head.ref == 'web-proxy-backport' && github.event.pull_request.head.repo.full_name == github.repository }}"
     runs-on: windows-latest
     steps:
+      - name: Prepare TBuild layout
+        shell: cmd
+        run: |
+          if not exist "%USERPROFILE%\TBuild\Libraries" mkdir "%USERPROFILE%\TBuild\Libraries"
+          if not exist "%USERPROFILE%\TBuild\ThirdParty" mkdir "%USERPROFILE%\TBuild\ThirdParty"
+          if exist "%GITHUB_WORKSPACE%\TBuild" rmdir "%GITHUB_WORKSPACE%\TBuild"
+          mklink /D "%GITHUB_WORKSPACE%\TBuild" "%USERPROFILE%\TBuild"
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>"%GITHUB_ENV%"
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
           ref: web-proxy-backport
           fetch-depth: 0
           submodules: recursive
+          path: ${{ env.TBUILD }}\AyuGramDesktop
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v6
@@ -33,30 +43,36 @@ jobs:
           toolset: 14.44
           sdk: 10.0.26100.0
 
-      - name: Prepare build directories
-        shell: cmd
-        run: |
-          if not exist Libraries mkdir Libraries
-          if not exist ThirdParty mkdir ThirdParty
-
       - name: Prepare libraries
         shell: cmd
-        run: call Telegram\build\prepare\win.bat skip-release silent
+        run: call "%TBUILD%\AyuGramDesktop\Telegram\build\prepare\win.bat" skip-release silent
+
+      - name: Verify required libraries
+        shell: pwsh
+        run: |
+          $required = @(
+            "$env:USERPROFILE\TBuild\Libraries\win64\tg_angle\out\Release\tg_angle.lib",
+            "$env:USERPROFILE\TBuild\Libraries\win64\libavif\Release\avif.lib"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) { throw "Required library is missing: $path" }
+            Write-Host "Found $path"
+          }
 
       - name: Configure Release
         shell: cmd
-        working-directory: Telegram
+        working-directory: ${{ env.TBUILD }}\AyuGramDesktop\Telegram
         run: call configure.bat x64 -D TDESKTOP_API_ID=2040 -D TDESKTOP_API_HASH=b18441a1ff607e10a989891a5462e627 -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=
 
       - name: Build Release
         shell: cmd
-        working-directory: Telegram
+        working-directory: ${{ env.TBUILD }}\AyuGramDesktop\Telegram
         run: cmake --build ..\out --config Release --parallel
 
       - name: Verify executable
         shell: pwsh
         run: |
-          $exe = Join-Path $env:GITHUB_WORKSPACE 'out\Release\Telegram.exe'
+          $exe = Join-Path $env:TBUILD 'AyuGramDesktop\out\Release\Telegram.exe'
           if (-not (Test-Path $exe)) { throw "Release executable not found: $exe" }
           $item = Get-Item $exe
           Write-Host "Built $($item.FullName) ($($item.Length) bytes)"
@@ -64,7 +80,7 @@ jobs:
       - name: Package Windows release
         shell: pwsh
         run: |
-          $release = Join-Path $env:GITHUB_WORKSPACE 'out\Release'
+          $release = Join-Path $env:TBUILD 'AyuGramDesktop\out\Release'
           $zip = Join-Path $env:GITHUB_WORKSPACE 'AyuGramDesktop-Windows-x64-WEBProxy.zip'
           Compress-Archive -Path "$release\*" -DestinationPath $zip -CompressionLevel Optimal -Force
 
