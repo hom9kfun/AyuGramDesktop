@@ -30,7 +30,7 @@ jobs:
           fi
           git remote add telegram-upstream https://github.com/telegramdesktop/tdesktop.git
           git fetch telegram-upstream 0178322588f5a58a42a155c29ebd9bc62a75375e 96d63afc3f751162d17118fbfb1115163ca618d0
-          git diff --binary 0178322588f5a58a42a155c29ebd9bc62a75375e 96d63afc3f7511623ca618d0 > /tmp/web-proxy.patch
+          git diff --binary 0178322588f5a58a42a155c29ebd9bc62a75375e 96d63afc3f751162d17118fbfb1115163ca618d0 > /tmp/web-proxy.patch
           git apply --3way --index /tmp/web-proxy.patch
           git diff --cached --check
           git commit -m 'feat: backport Telegram 7.1 WEB proxy'
