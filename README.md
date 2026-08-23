@@ -123,7 +123,7 @@ dnf install ayugram-desktop
 
 Flatpak: https://github.com/0FL01/AyuGramDesktop-flatpak
 
-Or follow [the official guide](https://github.com/AyuGram/AyuGramDesktop/blob/dev/docs/building-linux.md).
+Or follow [official guide](https://github.com/AyuGram/AyuGramDesktop/blob/dev/docs/building-linux.md).
 
 ## Donation
 
