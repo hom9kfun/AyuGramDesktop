@@ -33,19 +33,20 @@ jobs:
           toolset: 14.44
           sdk: 10.0.26100.0
 
-      - name: Prepare libraries
+      - name: Prepare build directories
         shell: cmd
         run: |
-          mkdir "%USERPROFILE%\TBuild"
-          mkdir "%USERPROFILE%\TBuild\Libraries"
-          mklink /D "%GITHUB_WORKSPACE%\TBuild" "%USERPROFILE%\TBuild"
-          call Telegram\build\prepare\win.bat skip-release silent
+          if not exist Libraries mkdir Libraries
+          if not exist ThirdParty mkdir ThirdParty
+
+      - name: Prepare libraries
+        shell: cmd
+        run: call Telegram\build\prepare\win.bat skip-release silent
 
       - name: Configure Release
         shell: cmd
         working-directory: Telegram
-        run: |
-          call configure.bat x64 -D TDESKTOP_API_ID=2040 -D TDESKTOP_API_HASH=b18441a1ff607e10a989891a5462e627 -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=
+        run: call configure.bat x64 -D TDESKTOP_API_ID=2040 -D TDESKTOP_API_HASH=b18441a1ff607e10a989891a5462e627 -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=
 
       - name: Build Release
         shell: cmd
@@ -57,7 +58,8 @@ jobs:
         run: |
           $exe = Join-Path $env:GITHUB_WORKSPACE 'out\Release\Telegram.exe'
           if (-not (Test-Path $exe)) { throw "Release executable not found: $exe" }
-          Get-Item $exe | Format-List FullName,Length,LastWriteTime
+          $item = Get-Item $exe
+          Write-Host "Built $($item.FullName) ($($item.Length) bytes)"
 
       - name: Package Windows release
         shell: pwsh
