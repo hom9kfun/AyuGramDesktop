@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   backport:
-    if: ${{ !startsWith(github.event.head_commit.message, 'feat: backport Telegram 7.1 WEB proxy') }}
+    if: "${{ !startsWith(github.event.head_commit.message, 'feat: backport Telegram 7.1 WEB proxy') }}"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
