@@ -19,7 +19,7 @@ jobs:
         run: |
           if not exist "%USERPROFILE%\TBuild\Libraries" mkdir "%USERPROFILE%\TBuild\Libraries"
           if not exist "%USERPROFILE%\TBuild\ThirdParty" mkdir "%USERPROFILE%\TBuild\ThirdParty"
-          if exist "%GITHUB_WORKSPACE%\TBuild" rmdir "%GITHUB_WORKSPACE%\TBuild"
+          if exist "%GITHUB_WORKSPACE%\TBuild" rmdir /Q /S "%GITHUB_WORKSPACE%\TBuild"
           mklink /D "%GITHUB_WORKSPACE%\TBuild" "%USERPROFILE%\TBuild"
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>"%GITHUB_ENV%"
 
@@ -45,9 +45,10 @@ jobs:
 
       - name: Prepare libraries
         shell: cmd
-        run: call "%TBUILD%\AyuGramDesktop\Telegram\build\prepare\win.bat" skip-release silent
+        working-directory: ${{ env.TBUILD }}
+        run: call "%TBUILD%\AyuGramDesktop\Telegram\build\prepare\win.bat" silent
 
-      - name: Verify required libraries
+      - name: Verify Release libraries
         shell: pwsh
         run: |
           $required = @(
@@ -55,7 +56,7 @@ jobs:
             "$env:USERPROFILE\TBuild\Libraries\win64\libavif\Release\avif.lib"
           )
           foreach ($path in $required) {
-            if (-not (Test-Path $path)) { throw "Required library is missing: $path" }
+            if (-not (Test-Path $path)) { throw "Required Release library is missing: $path" }
             Write-Host "Found $path"
           }
 
