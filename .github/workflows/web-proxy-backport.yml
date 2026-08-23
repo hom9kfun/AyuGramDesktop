@@ -6,45 +6,69 @@ on:
     branches: [dev]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  backport:
+  windows:
+    name: Windows x64 Release
     if: "${{ github.event.pull_request.head.ref == 'web-proxy-backport' && github.event.pull_request.head.repo.full_name == github.repository }}"
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v7
         with:
           ref: web-proxy-backport
           fetch-depth: 0
           submodules: recursive
 
-      - name: Apply official Telegram WEB proxy
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if test -f Telegram/SourceFiles/mtproto/web_proxy/web_proxy_transport.cpp; then
-            echo 'WEB proxy sources already present; skipping patch application.'
-          else
-            git remote add telegram-upstream https://github.com/telegramdesktop/tdesktop.git
-            git fetch telegram-upstream 0178322588f5a58a42a155c29ebd9bc62a75375e 96d63afc3f751162d17118fbfb1115163ca618d0
-            git diff --binary 0178322588f5a58a42a155c29ebd9bc62a75375e 96d63afc3f751162d17118fbfb1115163ca618d0 > /tmp/web-proxy.patch
-            git apply --3way --index /tmp/web-proxy.patch
-            git diff --cached --check
-            git commit -m 'feat: backport Telegram 7.1 WEB proxy'
-            git push --force-with-lease origin HEAD:web-proxy-backport
-          fi
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
 
-      - name: Build AyuGram with WEB proxy
+      - name: Initialize MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          toolset: 14.44
+          sdk: 10.0.26100.0
+
+      - name: Prepare libraries
+        shell: cmd
         run: |
-          set -euo pipefail
-          ./Telegram/build/prepare/linux.sh
-          docker run --rm \
-            -u "$(id -u):$(id -g)" \
-            -v "$PWD:/usr/src/tdesktop" \
-            ghcr.io/telegramdesktop/tdesktop/centos_env:latest \
-            /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
-            -D TDESKTOP_API_ID=2040 \
-            -D TDESKTOP_API_HASH=b18441a1ff607e10a989891a5462e627
+          mkdir "%USERPROFILE%\TBuild"
+          mkdir "%USERPROFILE%\TBuild\Libraries"
+          mklink /D "%GITHUB_WORKSPACE%\TBuild" "%USERPROFILE%\TBuild"
+          call Telegram\build\prepare\win.bat skip-release silent
+
+      - name: Configure Release
+        shell: cmd
+        working-directory: Telegram
+        run: |
+          call configure.bat x64 -D TDESKTOP_API_ID=2040 -D TDESKTOP_API_HASH=b18441a1ff607e10a989891a5462e627 -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=
+
+      - name: Build Release
+        shell: cmd
+        working-directory: Telegram
+        run: cmake --build ..\out --config Release --parallel
+
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:GITHUB_WORKSPACE 'out\Release\Telegram.exe'
+          if (-not (Test-Path $exe)) { throw "Release executable not found: $exe" }
+          Get-Item $exe | Format-List FullName,Length,LastWriteTime
+
+      - name: Package Windows release
+        shell: pwsh
+        run: |
+          $release = Join-Path $env:GITHUB_WORKSPACE 'out\Release'
+          $zip = Join-Path $env:GITHUB_WORKSPACE 'AyuGramDesktop-Windows-x64-WEBProxy.zip'
+          Compress-Archive -Path "$release\*" -DestinationPath $zip -CompressionLevel Optimal -Force
+
+      - name: Upload Windows release artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: AyuGramDesktop-Windows-x64-WEBProxy
+          path: AyuGramDesktop-Windows-x64-WEBProxy.zip
+          if-no-files-found: error
