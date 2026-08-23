@@ -1,1 +1,1 @@
-Temporary trigger for the WEB proxy backport workflow.
+Temporary trigger removed; WEB proxy verification is now part of the main backport workflow.
