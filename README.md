@@ -113,7 +113,7 @@ See [this repository](https://codeberg.org/OverLessArtem/ayugram-template-void) 
 
 ### Fedora
 
-From [RPM Fusion](https://admin.rpmfusion.org/pkgdb/package/free/ayugram-desktop/)
+From [RPM Fusion](https://admin.rpmfusion.org/pkgdb/package/free/ayugram-desktop/) repository.
 
 ```bash
 dnf install ayugram-desktop
