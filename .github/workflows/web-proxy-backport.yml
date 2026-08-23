@@ -1,0 +1,37 @@
+name: WEB proxy backport
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+    branches: [dev]
+
+permissions:
+  contents: write
+
+jobs:
+  backport:
+    if: ${{ github.event.pull_request.head.ref == 'web-proxy-backport' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: web-proxy-backport
+          fetch-depth: 0
+
+      - name: Apply official Telegram WEB proxy
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git log -1 --format='%s' | grep -Fq 'feat: backport Telegram 7.1 WEB proxy'; then
+            echo 'Backport commit already present.'
+            exit 0
+          fi
+          git remote add telegram-upstream https://github.com/telegramdesktop/tdesktop.git
+          git fetch telegram-upstream 0178322588f5a58a42a155c29ebd9bc62a75375e 96d63afc3f751162d17118fbfb1115163ca618d0
+          git diff --binary 0178322588f5a58a42a155c29ebd9bc62a75375e 96d63afc3f751162d17118fbfb1115163ca618d0 > /tmp/web-proxy.patch
+          git apply --3way --index /tmp/web-proxy.patch
+          git diff --cached --check
+          git commit -m 'feat: backport Telegram 7.1 WEB proxy'
+          git push origin HEAD:web-proxy-backport
