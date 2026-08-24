@@ -1,0 +1,1 @@
+Trigger Windows WEB proxy CI after installing ATL/MFC on the runner.
