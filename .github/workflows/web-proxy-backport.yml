@@ -36,12 +36,37 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Install Visual Studio ATL/MFC
+        shell: pwsh
+        run: |
+          $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\setup.exe'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installPath) { throw 'Visual Studio installation not found.' }
+          Write-Host "Visual Studio: $installPath"
+          & $installer modify --installPath "$installPath" --add Microsoft.VisualStudio.Component.VC.ATLMFC --quiet --wait --norestart
+          if ($LASTEXITCODE -ne 0) { throw "Visual Studio Installer failed with exit code $LASTEXITCODE" }
+
       - name: Initialize MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
           toolset: 14.44
           sdk: 10.0.26100.0
+
+      - name: Verify ATL headers
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $headers = @(
+            (Join-Path $installPath 'VC\Tools\MSVC\14.44.35207\atlmfc\include\atlbase.h'),
+            (Join-Path $installPath 'VC\Tools\MSVC\14.44.35207\atlmfc\include\atlcomcli.h')
+          )
+          foreach ($header in $headers) {
+            if (-not (Test-Path $header)) { throw "ATL header is missing: $header" }
+            Write-Host "Found $header"
+          }
 
       - name: Prepare libraries
         shell: cmd
